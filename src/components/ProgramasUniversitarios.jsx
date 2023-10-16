@@ -72,6 +72,7 @@ export const ProgramasUniversitarios = () => {
       setNuevoPrograma({
         // ... (reinicia los datos del nuevo programa)
       });
+      console.log(response)
     } catch (error) {
       console.error("Error al agregar programa:", error);
     }
