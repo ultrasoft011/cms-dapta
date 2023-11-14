@@ -10,3 +10,8 @@ html {
     "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
     "Segoe UI Symbol";
 }
+
+.quill {
+  height: 300px; /* Ajusta la altura según tus necesidades */
+  margin-bottom: 40px; 
+}

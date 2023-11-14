@@ -1,13 +1,31 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useMemo } from "react";
+import { Modal, Button } from "react-bootstrap";
 import { DaptaSdk } from "dapta-sdk";
+import useFetchProgramas from "../hooks/useFetchProgramas";
+import useHandleSubmit from "../hooks/useHandleSubmit ";
 import "bootstrap/dist/css/bootstrap.min.css";
+import ReactQuill from "react-quill";
+import "react-quill/dist/quill.snow.css"; // Estilo predeterminado de Quill
 
 export const ProgramasUniversitarios = () => {
+  const [showModal, setShowModal] = useState(false);
+  const [showCargosModal, setShowCargosModal] = useState(false);
+  const [showDescripcionModal, setShowDescripcionModal] = useState(false);
+  const handleShowCargos = () => setShowCargosModal(true);
+  const handleCloseCargos = () => setShowCargosModal(false);
+  const handleShowDescripcion = () => setShowDescripcionModal(true);
+  const handleCloseDescripcion = () => setShowDescripcionModal(false); // Función para manejar la apertura del modal
+  const handleShow = () => setShowModal(true);
+
+  // Función para manejar el cierre del modal
+  const handleClose = () => setShowModal(false);
+
   // Variables de estados iniciales
   const [programas, setProgramas] = useState([]); // Setiar los programas
   const [ordenAscendente, setOrdenAscendente] = useState(null); // Estado para ordenar los programas
   const [programasOrdenados, setProgramasOrdenados] = useState([]); // Estado para ordenar los programas
   const [editIndex, setEditIndex] = useState(null); // Indice para editar el programa
+  const [searchTerm, setSearchTerm] = useState("");
   // Constantes de dapta para endpoints / apikey
   const baseUrl = "https://api.dapta.ai/api/";
   const apiKey = "MPAo9-3cfb900f-ed55-4edc-8771-2e6cc9b16a50-f";
@@ -43,120 +61,119 @@ export const ProgramasUniversitarios = () => {
     plan_de_estudios: "",
   });
 
-  // useEffect para traer programas sombrilla (GET-endpoint)
-  useEffect(() => {
-    const fetchProgramas = async () => {
-      try {
-        const response = await daptaSdk.executeDaptaCall(
-          "futura-edtech-169-352-7/get_programas_sombrilla",
-          "GET"
-        );
-        console.log(response.response.first_action);
-        const programasData =
-          response.response.first_action.data.response.items || [];
-        setProgramas(programasData);
-        // Actualiza también la copia de programas ordenados
-        setProgramasOrdenados(programasData);
-      } catch (error) {
-        console.error("Error al obtener programas:", error);
-      }
-    };
-    fetchProgramas();
-  }, [daptaSdk]);
+  // Custom Hook para traer programas sombrilla (GET-endpoint)
+  useFetchProgramas(daptaSdk, setProgramas, setProgramasOrdenados);
+
+  // Nueva función para llamar updateOrdered
+  const handleSearch = () => {
+    updateOrderedProgramas(programas, searchTerm); // Llama a la nueva función de búsqueda
+  };
+
+  // Usa el hook
+  const handleSubmit = useHandleSubmit(
+    daptaSdk,
+    programas,
+    setProgramas,
+    setProgramasOrdenados,
+    editIndex,
+    setEditIndex,
+    nuevoPrograma,
+    setNuevoPrograma
+  );
 
   // Manejo del submit del form para crear o editar un programa
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      if (editIndex !== null) {
-        // En el modo de edición, utiliza una solicitud PUT para actualizar el programa existente.
-        const response = await daptaSdk.executeDaptaCall(
-          `futura-edtech-169-352-7/update_programas_sombrilla`,
-          "PUT",
-          undefined,
-          nuevoPrograma,
-          undefined,
-          { id: programas[editIndex].id }
-        );
-        const nuevosProgramas = [...programas];
-        nuevosProgramas[editIndex] = nuevoPrograma;
-        setProgramas(nuevosProgramas);
-        setProgramasOrdenados(nuevosProgramas);
-        setEditIndex(null);
-        setNuevoPrograma({
-          id_universidad: "",
-          nombre_programa: "",
-          snies: "",
-          salario_promedio: "",
-          video_programa: "",
-          descripcion_video: "",
-          afinidad_programa: "",
-          precio: "",
-          nivel: "",
-          presencial: "",
-          numero_semestres: "",
-          creditos: "",
-          jornada: "",
-          boton_beca_futura: "",
-          imagen_egresado: "",
-          perfil_egresado: "",
-          cargos_a_ocupar: [],
-          diferenciales: [],
-          convenios: "",
-          becas_o_auxilios: "",
-          titulo_que_otorga: "",
-          fecha_inscripciones: "",
-          inicio_de_clases: "",
-          requisitos_inscripcion: [],
-          plan_de_estudios: "",
-        });
-        console.log(response.response.first_action);
-      } else {
-        // En el modo de creación, utiliza una solicitud POST para crear un nuevo programa.
-        const response = await daptaSdk.executeDaptaCall(
-          "futura-edtech-169-352-7/create_programas_sombrilla",
-          "POST",
-          undefined,
-          nuevoPrograma,
-          undefined,
-          undefined
-        );
-        const nuevosProgramas = [...programas, nuevoPrograma];
-        setProgramas(nuevosProgramas);
-        setProgramasOrdenados(nuevosProgramas); // Actualiza programasOrdenados
-        setNuevoPrograma({
-          id_universidad: "",
-          nombre_programa: "",
-          snies: "",
-          salario_promedio: "",
-          video_programa: "",
-          descripcion_video: "",
-          afinidad_programa: "",
-          precio: "",
-          nivel: "",
-          presencial: "",
-          numero_semestres: "",
-          creditos: "",
-          jornada: "",
-          boton_beca_futura: "",
-          imagen_egresado: "",
-          perfil_egresado: "",
-          cargos_a_ocupar: [],
-          diferenciales: [],
-          convenios: "",
-          becas_o_auxilios: "",
-          titulo_que_otorga: "",
-          fecha_inscripciones: "",
-          inicio_de_clases: "",
-          requisitos_inscripcion: [],
-          plan_de_estudios: "",
-        });
-        console.log(response.response.first_action);
-      }
-    } catch (error) {
-      console.error("Error al agregar/actualizar programa:", error);
-    }
-  };
+  // const handleSubmit = async (e) => {
+  //   e.preventDefault();
+  //   try {
+  //     if (editIndex !== null) {
+  //       // En el modo de edición, utiliza una solicitud PUT para actualizar el programa existente.
+  //       const response = await daptaSdk.executeDaptaCall(
+  //         `futura-edtech-169-352-7/update_programas_sombrilla`,
+  //         "PUT",
+  //         undefined,
+  //         nuevoPrograma,
+  //         undefined,
+  //         { id: programas[editIndex].id }
+  //       );
+  //       const nuevosProgramas = [...programas];
+  //       nuevosProgramas[editIndex] = nuevoPrograma;
+  //       setProgramas(nuevosProgramas);
+  //       setProgramasOrdenados(nuevosProgramas);
+  //       setEditIndex(null);
+  //       setNuevoPrograma({
+  //         id_universidad: "",
+  //         nombre_programa: "",
+  //         snies: "",
+  //         salario_promedio: "",
+  //         video_programa: "",
+  //         descripcion_video: "",
+  //         afinidad_programa: "",
+  //         precio: "",
+  //         nivel: "",
+  //         presencial: "",
+  //         numero_semestres: "",
+  //         creditos: "",
+  //         jornada: "",
+  //         boton_beca_futura: "",
+  //         imagen_egresado: "",
+  //         perfil_egresado: "",
+  //         cargos_a_ocupar: [],
+  //         diferenciales: [],
+  //         convenios: "",
+  //         becas_o_auxilios: "",
+  //         titulo_que_otorga: "",
+  //         fecha_inscripciones: "",
+  //         inicio_de_clases: "",
+  //         requisitos_inscripcion: [],
+  //         plan_de_estudios: "",
+  //       });
+  //       console.log(response.response.first_action);
+  //     } else {
+  //       // En el modo de creación, utiliza una solicitud POST para crear un nuevo programa.
+  //       const response = await daptaSdk.executeDaptaCall(
+  //         "futura-edtech-169-352-7/create_programas_sombrilla",
+  //         "POST",
+  //         undefined,
+  //         nuevoPrograma,
+  //         undefined,
+  //         undefined
+  //       );
+  //       const nuevosProgramas = [...programas, nuevoPrograma];
+  //       setProgramas(nuevosProgramas);
+  //       setProgramasOrdenados(nuevosProgramas); // Actualiza programasOrdenados
+  //       setNuevoPrograma({
+  //         id_universidad: "",
+  //         nombre_programa: "",
+  //         snies: "",
+  //         salario_promedio: "",
+  //         video_programa: "",
+  //         descripcion_video: "",
+  //         afinidad_programa: "",
+  //         precio: "",
+  //         nivel: "",
+  //         presencial: "",
+  //         numero_semestres: "",
+  //         creditos: "",
+  //         jornada: "",
+  //         boton_beca_futura: "",
+  //         imagen_egresado: "",
+  //         perfil_egresado: "",
+  //         cargos_a_ocupar: [],
+  //         diferenciales: [],
+  //         convenios: "",
+  //         becas_o_auxilios: "",
+  //         titulo_que_otorga: "",
+  //         fecha_inscripciones: "",
+  //         inicio_de_clases: "",
+  //         requisitos_inscripcion: [],
+  //         plan_de_estudios: "",
+  //       });
+  //       console.log(response.response.first_action);
+  //     }
+  //   } catch (error) {
+  //     console.error("Error al agregar/actualizar programa:", error);
+  //   }
+  // };
 
   // Modo eliminar, utiliza una solicitud DELETE para eliminar un programa existente.
   const eliminarPrograma = async (index) => {
@@ -183,42 +200,98 @@ export const ProgramasUniversitarios = () => {
   };
 
   // Manejo del cambio de los labels para setiear el nuevo programa
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setNuevoPrograma({ ...nuevoPrograma, [name]: value });
+  const formatNumber = (number) => {
+    const numericValue = number.replace(/\D/g, ""); // Elimina caracteres no numéricos
+    const formattedValue = numericValue.replace(/\B(?=(\d{3})+(?!\d))/g, "."); // Agrega separador de miles
+    return `$${formattedValue}`;
   };
 
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+
+    // Verifica si el campo es numérico (utilizando el atributo "inputMode")
+    const isNumericField = e.target.getAttribute("inputMode") === "numeric";
+
+    // Aplica el formato solo a los campos numéricos
+    const formattedValue = isNumericField ? formatNumber(value) : value;
+
+    setNuevoPrograma({ ...nuevoPrograma, [name]: formattedValue });
+  };
   // Maneja el boton editar para arreglar un programa
   const handleEditClick = (index) => {
     setEditIndex(index); // Establece el índice del programa que se va a editar
     const programaAEditar = programasOrdenados[index];
     setNuevoPrograma({ ...programaAEditar }); // Carga los datos del programa en el formulario de edición
   };
-
-  // Función para ordenar programas
-  const ordenarProgramas = () => {
+  const ordenarProgramas = (programas, ascendente) => {
     const programasOrdenados = [...programas];
     programasOrdenados.sort((a, b) => {
       const nombreA = a.nombre_programa.toLowerCase();
       const nombreB = b.nombre_programa.toLowerCase();
-      return nombreA.localeCompare(nombreB);
+      return ascendente
+        ? nombreA.localeCompare(nombreB)
+        : nombreB.localeCompare(nombreA);
     });
     return programasOrdenados;
   };
 
+  // // Función para ordenar programas
+  // const ordenarProgramas = () => {
+  //   const programasOrdenados = [...programas];
+  //   programasOrdenados.sort((a, b) => {
+  //     const nombreA = a.nombre_programa.toLowerCase();
+  //     const nombreB = b.nombre_programa.toLowerCase();
+  //     return nombreA.localeCompare(nombreB);
+  //   });
+  //   return programasOrdenados;
+  // };
+
   // Función para ordenar programas de A-Z o viceversa
   const toggleOrden = () => {
+    let newAscendente = null;
+
     if (ordenAscendente === null) {
-      setProgramasOrdenados(ordenarProgramas(programasOrdenados)); // Ordenar de A a Z
-      setOrdenAscendente(true);
+      newAscendente = true;
     } else if (ordenAscendente) {
-      setProgramasOrdenados(ordenarProgramas(programasOrdenados).reverse()); // Ordenar de Z a A
-      setOrdenAscendente(false);
-    } else {
-      // Dejar los programas en el estado original
-      setProgramasOrdenados([...programas]);
-      setOrdenAscendente(null);
+      newAscendente = false;
     }
+
+    setOrdenAscendente(newAscendente);
+    updateOrderedProgramas(programas, searchTerm); // Llama a la nueva función de ordenar
+  };
+
+  // Función para ordenar programas de A-Z o viceversa
+  // const toggleOrden = () => {
+  //   if (ordenAscendente === null) {
+  //     setProgramasOrdenados(ordenarProgramas(programasOrdenados)); // Ordenar de A a Z
+  //     setOrdenAscendente(true);
+  //   } else if (ordenAscendente) {
+  //     setProgramasOrdenados(ordenarProgramas(programasOrdenados).reverse()); // Ordenar de Z a A
+  //     setOrdenAscendente(false);
+  //   } else {
+  //     // Dejar los programas en el estado original
+  //     setProgramasOrdenados([...programas]);
+  //     setOrdenAscendente(null);
+  //   }
+  // };
+
+  // Filtra los programas basado en el término de búsqueda
+  const filterProgramas = (programas, searchTerm) => {
+    return programas.filter((p) =>
+      p.nombre_programa.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  };
+
+  // Nueva función para actualizar programasOrdenados
+  const updateOrderedProgramas = (programas, searchTerm) => {
+    const filtered = filterProgramas(programas, searchTerm);
+
+    let ordered = filtered;
+
+    if (ordenAscendente !== null) {
+      ordered = ordenarProgramas(filtered, ordenAscendente);
+    }
+    setProgramasOrdenados(ordered);
   };
 
   return (
@@ -233,9 +306,10 @@ export const ProgramasUniversitarios = () => {
         }}
       >
         <h5 className="mb-4">Programas Universitarios</h5>
+
         <form onSubmit={handleSubmit}>
           <div className="row" style={{ fontSize: "0.8rem" }}>
-            <div className="col-md-4">
+            <div className="col-md-3">
               <div className="mb-3">
                 <label htmlFor="nombre_programa" className="form-label">
                   Nombre del programa
@@ -249,7 +323,7 @@ export const ProgramasUniversitarios = () => {
                 />
               </div>
             </div>
-            <div className="col-md-2">
+            <div className="col-md-3">
               <div className="mb-3">
                 <label htmlFor="snies" className="form-label">
                   Snies
@@ -270,7 +344,7 @@ export const ProgramasUniversitarios = () => {
                   Precio
                 </label>
                 <input
-                  type="number"
+                  type="text"
                   inputMode="numeric"
                   name="precio"
                   className="form-control"
@@ -286,6 +360,7 @@ export const ProgramasUniversitarios = () => {
                 </label>
                 <input
                   type="text"
+                  inputMode="numeric"
                   name="salario_promedio"
                   className="form-control"
                   value={nuevoPrograma.salario_promedio}
@@ -295,7 +370,7 @@ export const ProgramasUniversitarios = () => {
             </div>
           </div>
           <div className="row" style={{ fontSize: "0.8rem" }}>
-            <div className="col-md-2">
+            <div className="col-md-3">
               <div className="mb-3">
                 <label htmlFor="semestres" className="form-label">
                   Semestres
@@ -316,7 +391,7 @@ export const ProgramasUniversitarios = () => {
                 />
               </div>
             </div>
-            <div className="col-md-2">
+            <div className="col-md-3">
               <div className="mb-3">
                 <label htmlFor="nivel" className="form-label">
                   Nivel
@@ -330,7 +405,7 @@ export const ProgramasUniversitarios = () => {
                 />
               </div>
             </div>
-            <div className="col-md-2">
+            <div className="col-md-3">
               <div className="mb-3">
                 <label htmlFor="presencial" className="form-label">
                   Presencial
@@ -344,7 +419,7 @@ export const ProgramasUniversitarios = () => {
                 />
               </div>
             </div>
-            <div className="col-md-2">
+            <div className="col-md-3">
               <div className="mb-3">
                 <label htmlFor="creditos" className="form-label">
                   Créditos
@@ -358,7 +433,7 @@ export const ProgramasUniversitarios = () => {
                 />
               </div>
             </div>
-            <div className="col-md-2">
+            <div className="col-md-3">
               <div className="mb-3">
                 <label htmlFor="jornada" className="form-label">
                   Jornada
@@ -372,109 +447,7 @@ export const ProgramasUniversitarios = () => {
                 />
               </div>
             </div>
-            <div className="col-md-2">
-              <div className="mb-3">
-                <label htmlFor="afinidad_programa" className="form-label">
-                  Afinidad
-                </label>
-                <input
-                  type="text"
-                  name="afinidad_programa"
-                  className="form-control"
-                  value={nuevoPrograma.afinidad_programa}
-                  onChange={handleChange}
-                />
-              </div>
-            </div>
-          </div>
-          <div className="row" style={{ fontSize: "0.8rem" }}>
-            <div className="col-md-6">
-              <div className="mb-3">
-                <label htmlFor="video_programa" className="form-label">
-                  Video programa
-                </label>
-                <input
-                  type="text"
-                  name="video_programa"
-                  className="form-control"
-                  value={nuevoPrograma.video_programa}
-                  onChange={handleChange}
-                />
-              </div>
-            </div>
-            <div className="col-md-6">
-              <div className="mb-3">
-                <label htmlFor="descripcion_video" className="form-label">
-                  Descripción video
-                </label>
-                <input
-                  type="text"
-                  name="descripcion_video"
-                  className="form-control"
-                  value={nuevoPrograma.descripcion_video}
-                  onChange={handleChange}
-                />
-              </div>
-            </div>
-          </div>
-          <div className="row" style={{ fontSize: "0.8rem" }}>
-            <div className="col-md-2">
-              <div className="mb-3">
-                <label htmlFor="boton_beca_futura" className="form-label">
-                  Beca Futura
-                </label>
-                <input
-                  type="text"
-                  name="boton_beca_futura"
-                  className="form-control"
-                  value={nuevoPrograma.boton_beca_futura}
-                  onChange={handleChange}
-                />
-              </div>
-            </div>
-            <div className="col-md-2">
-              <div className="mb-3">
-                <label htmlFor="imagen_egresado" className="form-label">
-                  Imagen egresado
-                </label>
-                <input
-                  type="text"
-                  name="imagen_egresado"
-                  className="form-control"
-                  value={nuevoPrograma.imagen_egresado}
-                  onChange={handleChange}
-                />
-              </div>
-            </div>
-            <div className="col-md-2">
-              <div className="mb-3">
-                <label htmlFor="perfil_egresado" className="form-label">
-                  Perfil egresado
-                </label>
-                <input
-                  type="text"
-                  name="perfil_egresado"
-                  className="form-control"
-                  value={nuevoPrograma.perfil_egresado}
-                  onChange={handleChange}
-                />
-              </div>
-            </div>
-            <div className="col-md-2">
-              <div className="mb-3">
-                <label htmlFor="cargos_a_ocupar" className="form-label">
-                  Cargos a ocupar
-                </label>
-                <input
-                  type="text"
-                  name="cargos_a_ocupar"
-                  className="form-control"
-                  value={nuevoPrograma.cargos_a_ocupar}
-                  onChange={handleChange}
-                />
-              </div>
-            </div>
-            <div className="col-md-2">
+            <div className="col-md-3">
               <div className="mb-3">
                 <label htmlFor="titulo_que_otorga" className="form-label">
                   Titulo que otorga
@@ -488,51 +461,7 @@ export const ProgramasUniversitarios = () => {
                 />
               </div>
             </div>
-            <div className="col-md-2">
-              <div className="mb-3">
-                <label htmlFor="diferenciales" className="form-label">
-                  Diferenciales
-                </label>
-                <input
-                  type="text"
-                  name="diferenciales"
-                  className="form-control"
-                  value={nuevoPrograma.diferenciales}
-                  onChange={handleChange}
-                />
-              </div>
-            </div>
-          </div>
-          <div className="row" style={{ fontSize: "0.8rem" }}>
-            <div className="col-md-2">
-              <div className="mb-3">
-                <label htmlFor="convenios" className="form-label">
-                  Convenios
-                </label>
-                <input
-                  type="text"
-                  name="convenios"
-                  className="form-control"
-                  value={nuevoPrograma.convenios}
-                  onChange={handleChange}
-                />
-              </div>
-            </div>
-            <div className="col-md-2">
-              <div className="mb-3">
-                <label htmlFor="becas_o_auxilios" className="form-label">
-                  Becas/Auxilios
-                </label>
-                <input
-                  type="text"
-                  name="becas_o_auxilios"
-                  className="form-control"
-                  value={nuevoPrograma.becas_o_auxilios}
-                  onChange={handleChange}
-                />
-              </div>
-            </div>
-            <div className="col-md-2">
+            <div className="col-md-3">
               <div className="mb-3">
                 <label htmlFor="fecha_inscripciones" className="form-label">
                   Fecha Inscripciones
@@ -546,7 +475,7 @@ export const ProgramasUniversitarios = () => {
                 />
               </div>
             </div>
-            <div className="col-md-2">
+            <div className="col-md-3">
               <div className="mb-3">
                 <label htmlFor="inicio_de_clases" className="form-label">
                   Fecha inicio de clases
@@ -560,21 +489,66 @@ export const ProgramasUniversitarios = () => {
                 />
               </div>
             </div>
-            <div className="col-md-2">
+            {/* <div className="col-md-2">
               <div className="mb-3">
-                <label htmlFor="requisitos_inscripcion" className="form-label">
-                  Requisitos de inscripción
+                <label htmlFor="afinidad_programa" className="form-label">
+                  Afinidad
                 </label>
                 <input
                   type="text"
-                  name="requisitos_inscripcion"
+                  name="afinidad_programa"
                   className="form-control"
-                  value={nuevoPrograma.requisitos_inscripcion}
+                  value={nuevoPrograma.afinidad_programa}
+                  onChange={handleChange}
+                />
+              </div>
+            </div> */}
+          </div>
+          <div className="row" style={{ fontSize: "0.8rem" }}>
+            <div className="col-md-3">
+              <div className="mb-3">
+                <label htmlFor="boton_beca_futura" className="form-label">
+                  Beca Futura
+                </label>
+                <input
+                  type="text"
+                  name="boton_beca_futura"
+                  className="form-control"
+                  value={nuevoPrograma.boton_beca_futura}
                   onChange={handleChange}
                 />
               </div>
             </div>
-            <div className="col-md-2">
+            <div className="col-md-3">
+              <div className="mb-3">
+                <label htmlFor="video_programa" className="form-label">
+                  Video programa
+                </label>
+                <input
+                  type="text"
+                  name="video_programa"
+                  className="form-control"
+                  value={nuevoPrograma.video_programa}
+                  onChange={handleChange}
+                />
+              </div>
+            </div>
+
+            <div className="col-md-3">
+              <div className="mb-3">
+                <label htmlFor="diferenciales" className="form-label">
+                  Diferenciales
+                </label>
+                <input
+                  type="text"
+                  name="diferenciales"
+                  className="form-control"
+                  value={nuevoPrograma.diferenciales}
+                  onChange={handleChange}
+                />
+              </div>
+            </div>
+            <div className="col-md-3">
               <div className="mb-3">
                 <label htmlFor="plan_de_estudios" className="form-label">
                   Plan de estudios
@@ -589,8 +563,214 @@ export const ProgramasUniversitarios = () => {
               </div>
             </div>
           </div>
+          <div className="row" style={{ fontSize: "0.8rem" }}>
+            <div className="col-md-4">
+              <div className="mb-3">
+                <label htmlFor="convenios" className="form-label">
+                  Convenios
+                </label>
+                <input
+                  type="text"
+                  name="convenios"
+                  className="form-control"
+                  value={nuevoPrograma.convenios}
+                  onChange={handleChange}
+                />
+              </div>
+            </div>
+            <div className="col-md-4">
+              <div className="mb-3">
+                <label htmlFor="becas_o_auxilios" className="form-label">
+                  Becas/Auxilios
+                </label>
+                <input
+                  type="text"
+                  name="becas_o_auxilios"
+                  className="form-control"
+                  value={nuevoPrograma.becas_o_auxilios}
+                  onChange={handleChange}
+                />
+              </div>
+            </div>
+
+            <div className="col-md-4">
+              <div className="mb-3">
+                <label htmlFor="requisitos_inscripcion" className="form-label">
+                  Requisitos de inscripción
+                </label>
+                <input
+                  type="text"
+                  name="requisitos_inscripcion"
+                  className="form-control"
+                  value={nuevoPrograma.requisitos_inscripcion}
+                  onChange={handleChange}
+                />
+              </div>
+            </div>
+
+            <div
+              className="row  justify-content-center text-center mt-2"
+              style={{ fontSize: "0.8rem" }}
+            >
+              <div className="col-md-4">
+                <div className="mb-3">
+                  <Button
+                    onClick={handleShow}
+                    style={{
+                      background: "rgb(241, 160, 55)",
+                      border: "1px solid rgb(241, 160, 55)",
+                    }}
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="16"
+                      height="16"
+                      fill="currentColor"
+                      class="bi bi-plus"
+                      viewBox="0 0 16 16"
+                    >
+                      <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4z" />
+                    </svg>
+                    Perfil Egresado
+                  </Button>
+                  <Modal show={showModal} onHide={handleClose}>
+                    <Modal.Header closeButton>
+                      <Modal.Title>Editar Texto</Modal.Title>
+                    </Modal.Header>
+                    <Modal.Body>
+                      <ReactQuill
+                        value={nuevoPrograma.perfil_egresado}
+                        onChange={(valueEgresado) =>
+                          setNuevoPrograma({
+                            ...nuevoPrograma,
+                            perfil_egresado: valueEgresado,
+                          })
+                        }
+                      />
+                    </Modal.Body>
+                    <Modal.Footer>
+                      <Button variant="secondary" onClick={handleClose}>
+                        Cerrar
+                      </Button>
+                      <Button variant="primary" onClick={handleClose}>
+                        Guardar Cambios
+                      </Button>
+                    </Modal.Footer>
+                  </Modal>
+                </div>
+              </div>
+              <div className="col-md-4">
+                <div className="mb-3">
+                  <Button
+                    onClick={handleShowCargos}
+                    style={{
+                      background: "rgb(241, 160, 55)",
+                      border: "1px solid rgb(241, 160, 55)",
+                    }}
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="16"
+                      height="16"
+                      fill="currentColor"
+                      class="bi bi-plus"
+                      viewBox="0 0 16 16"
+                    >
+                      <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4z" />
+                    </svg>
+                    Cargos a Ocupar
+                  </Button>
+                  <Modal show={showCargosModal} onHide={handleCloseCargos}>
+                    <Modal.Header closeButton>
+                      <Modal.Title>Editar Texto</Modal.Title>
+                    </Modal.Header>
+                    <Modal.Body>
+                      <ReactQuill
+                        value={nuevoPrograma.cargos_a_ocupar}
+                        onChange={(valueCargos) =>
+                          setNuevoPrograma({
+                            ...nuevoPrograma,
+                            cargos_a_ocupar: valueCargos,
+                          })
+                        }
+                      />
+                    </Modal.Body>
+                    <Modal.Footer>
+                      <Button variant="secondary" onClick={handleCloseCargos}>
+                        Cerrar
+                      </Button>
+                      <Button variant="primary" onClick={handleCloseCargos}>
+                        Guardar Cambios
+                      </Button>
+                    </Modal.Footer>
+                  </Modal>
+                </div>
+              </div>
+              <div className="col-md-4">
+                <div className="mb-3">
+                  <Button
+                    onClick={handleShowDescripcion}
+                    style={{
+                      background: "rgb(241, 160, 55)",
+                      border: "1px solid rgb(241, 160, 55)",
+                    }}
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="16"
+                      height="16"
+                      fill="currentColor"
+                      class="bi bi-plus"
+                      viewBox="0 0 16 16"
+                    >
+                      <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4z" />
+                    </svg>
+                    Descripción Programa
+                  </Button>
+                  <Modal
+                    show={showDescripcionModal}
+                    onHide={handleCloseDescripcion}
+                  >
+                    <Modal.Header closeButton>
+                      <Modal.Title>Editar Texto</Modal.Title>
+                    </Modal.Header>
+                    <Modal.Body>
+                      <ReactQuill
+                        value={nuevoPrograma.descripcion_video}
+                        onChange={(valueDescripcion) =>
+                          setNuevoPrograma({
+                            ...nuevoPrograma,
+                            descripcion_video: valueDescripcion,
+                          })
+                        }
+                      />
+                    </Modal.Body>
+                    <Modal.Footer>
+                      <Button
+                        variant="secondary"
+                        onClick={handleCloseDescripcion}
+                      >
+                        Cerrar
+                      </Button>
+                      <Button
+                        variant="primary"
+                        onClick={handleCloseDescripcion}
+                      >
+                        Guardar Cambios
+                      </Button>
+                    </Modal.Footer>
+                  </Modal>
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* ... (otros campos del nuevo programa) */}
-          <button type="submit" className="btn btn-primary">
+          <button
+            type="submit"
+            className="btn btn-primary"
+            style={{ marginTop: "2em" }}
+          >
             <svg
               xmlns="http://www.w3.org/2000/svg"
               width="16"
@@ -600,10 +780,43 @@ export const ProgramasUniversitarios = () => {
               viewBox="0 0 16 16"
             >
               <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4z" />
-            </svg>{" "}
+            </svg>
             {editIndex !== null ? "Confirmar Programa" : "Agregar Programa"}
           </button>
         </form>
+      </div>
+      <div style={{ display: "flex", alignItems: "center", marginTop: "10px" }}>
+        <input
+          style={{
+            flex: 5,
+            padding: "10px",
+            border: "1.5px solid #ccc",
+            borderRadius: "4px 0 0 4px",
+          }}
+          type="text"
+          placeholder="Buscar programa..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              handleSearch();
+            }
+          }}
+        />
+        <button
+          style={{
+            flex: 1,
+            padding: "10px",
+            border: "1.5px solid #ccc",
+            borderRadius: "0 4px 4px 0",
+            marginLeft: "-1px",
+            cursor: "pointer",
+            fontWeight: 'bold'
+          }}
+          onClick={handleSearch}
+        >
+          Buscar
+        </button>
       </div>
 
       <div
@@ -672,6 +885,7 @@ export const ProgramasUniversitarios = () => {
             <p style={{ marginBottom: 0, paddingRight: "2.5rem" }}>Acciones</p>
           </div>
         </div>
+
         {programasOrdenados.map((programa, index) => (
           <div
             key={index}

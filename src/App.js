@@ -1,9 +1,15 @@
+import React from "react";
+import { Routes, Route } from "react-router-dom";
 import { ProgramasUniversitarios } from "./components/ProgramasUniversitarios";
+import Bancos from "./components/Bancos";
 
 function App() {
   return (
     <div className="App">
-      <ProgramasUniversitarios />
+      <Routes>
+        <Route path="/programas" element={<ProgramasUniversitarios />} />
+        <Route path="/bancos" element={<Bancos />} />
+      </Routes>
     </div>
   );
 }
